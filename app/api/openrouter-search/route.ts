@@ -1,11 +1,30 @@
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const { query } = await request.json();
+  const { query, history = [] } = await request.json();
 
   if (!query) {
     return NextResponse.json({ error: "Query is required" }, { status: 400 });
   }
+
+  // Base system message
+  const systemMessage = {
+    role: "system",
+    content:
+      "You are an expert Git assistant. Only answer questions that are commonly related to Git. If the question is not related to Git,decline with a poliet and intelligent response.' Provide clear, detailed, and step-by-step solutions for Git-related problems only.",
+  };
+
+  // Construct message array conditionally
+  const messages =
+    history.length > 0
+      ? [systemMessage, ...history, { role: "user", content: query }]
+      : [
+          systemMessage,
+          {
+            role: "user",
+            content: `Git problem:\n${query}\nIf this is unrelated to Git, say so. Otherwise, provide a detailed solution.`,
+          },
+        ];
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -16,18 +35,9 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert Git assistant. Provide concise, clear solutions to Git problems.",
-          },
-          {
-            role: "user",
-            content: `Git problem:\n${query}\nProvide only the solution.`,
-          },
-        ],
-        max_tokens: 300,
-        temperature: 0.3,
+        messages,
+        max_tokens: 600,
+        temperature: 0.4,
       }),
     });
 

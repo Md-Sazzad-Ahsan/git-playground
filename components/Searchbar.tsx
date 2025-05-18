@@ -15,6 +15,9 @@ const SearchBar = ({ query, setQuery, onSubmit }: Props) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<
+  { role: "user" | "assistant"; content: string }[]
+>([]);
 
   useEffect(() => {
     const trimmed = query.toLowerCase().trim();
@@ -35,40 +38,55 @@ const SearchBar = ({ query, setQuery, onSubmit }: Props) => {
     setSuggestions(matches.slice(0, 5));
   }, [query]);
 
-  const fetchSolution = async (problem: string) => {
-    setLoading(true);
-    setError(null);
+const fetchSolution = async (problem: string) => {
+  setLoading(true);
+  setError(null);
 
-    // Check local first
-    const local = gitProblems.find((item) => item.problem === problem);
-    if (local) {
-      onSubmit(problem, local.solution);
-      setLoading(false);
-      return;
-    }
+  // Check local first
+  const local = gitProblems.find((item) => item.problem === problem);
+  if (local) {
+    // Update history with local answer
+    setHistory((prev) => [
+      ...prev,
+      { role: "user", content: problem },
+      { role: "assistant", content: local.solution },
+    ]);
+    onSubmit(problem, local.solution);
+    setQuery("");
+    setLoading(false);
+    return;
+  }
 
-    try {
-      const res = await fetch("/api/openrouter-search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: problem }),
-      });
+  try {
+    const res = await fetch("/api/openrouter-search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: problem, history }), // <-- pass history here
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!res.ok || !data.solution) {
-        setError("Error fetching solution.");
-        onSubmit(problem, "Error fetching solution.");
-      } else {
-        onSubmit(problem, data.solution);
-      }
-    } catch {
-      setError("Error fetching solution");
+    if (!res.ok || !data.solution) {
+      setError("Error fetching solution.");
       onSubmit(problem, "Error fetching solution.");
-    } finally {
-      setLoading(false);
+    } else {
+      // Update conversation history
+      setHistory((prev) => [
+        ...prev,
+        { role: "user", content: problem },
+        { role: "assistant", content: data.solution },
+      ]);
+      onSubmit(problem, data.solution);
+      setQuery("");
     }
-  };
+  } catch {
+    setError("Error fetching solution");
+    onSubmit(problem, "Error fetching solution.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="relative py-2 bg-white z-40">
