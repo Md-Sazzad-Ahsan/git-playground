@@ -3,20 +3,24 @@
 import { Input } from "@/components/Input";
 import { useEffect, useState } from "react";
 import gitProblems from "@/data/gitProblems";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   query: string;
   setQuery: (val: string) => void;
-  onSubmit: (value: string) => void;
+  onSubmit: (value: string, solution: string) => void; // lifted up to app/page.tsx
 };
 
 const SearchBar = ({ query, setQuery, onSubmit }: Props) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const trimmed = query.toLowerCase().trim();
     if (!trimmed) {
       setSuggestions([]);
+      setError(null);
       return;
     }
 
@@ -31,15 +35,49 @@ const SearchBar = ({ query, setQuery, onSubmit }: Props) => {
     setSuggestions(matches.slice(0, 5));
   }, [query]);
 
+  const fetchSolution = async (problem: string) => {
+    setLoading(true);
+    setError(null);
+
+    // Check local first
+    const local = gitProblems.find((item) => item.problem === problem);
+    if (local) {
+      onSubmit(problem, local.solution);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/openrouter-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: problem }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.solution) {
+        setError("Error fetching solution.");
+        onSubmit(problem, "Error fetching solution.");
+      } else {
+        onSubmit(problem, data.solution);
+      }
+    } catch {
+      setError("Error fetching solution");
+      onSubmit(problem, "Error fetching solution.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="relative border-t px-4 py-3 bg-white z-40">
-      {/* Suggestions displayed above */}
+    <div className="relative py-2 bg-white z-40">
       {suggestions.length > 0 && (
-        <ul className="absolute bottom-full left-4 right-4 mb-2 bg-white border rounded-md shadow max-h-52 overflow-y-auto z-50">
+        <ul className="absolute bottom-full left-0 right-4 mb-2 bg-white border rounded-md shadow max-h-52 overflow-y-auto z-50">
           {suggestions.map((sugg, idx) => (
             <li
               key={idx}
-              onClick={() => onSubmit(sugg)}
+              onClick={() => fetchSolution(sugg)}
               className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-sm"
             >
               {sugg}
@@ -48,11 +86,10 @@ const SearchBar = ({ query, setQuery, onSubmit }: Props) => {
         </ul>
       )}
 
-      {/* Input form */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (query.trim()) onSubmit(query.trim());
+          if (query.trim()) fetchSolution(query.trim());
         }}
         className="flex gap-2"
         autoComplete="off"
@@ -63,13 +100,15 @@ const SearchBar = ({ query, setQuery, onSubmit }: Props) => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button
-          type="submit"
-          className="bg-black text-white px-4 py-2 rounded-md text-sm"
+        <Button
+          disabled={loading}
+          className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm"
         >
-          Search
-        </button>
+          {loading ? "Searching..." : "Search"}
+        </Button>
       </form>
+
+      {error && <p className="mt-2 text-red-600">{error}</p>}
     </div>
   );
 };

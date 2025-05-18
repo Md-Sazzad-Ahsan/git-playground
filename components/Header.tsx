@@ -3,6 +3,7 @@
 
 import { IoMenu } from "react-icons/io5";
 import { useSidebar } from "./SidebarContext";
+import { Button } from "@/components/ui/button";
 
 type HeaderProps = {
   className?: string;
@@ -23,7 +24,7 @@ export default function Header({ className = "" }: HeaderProps) {
       >
         <IoMenu size={24} className="text-gray-200" />
       </button>
-      
+
       {/* Desktop toggle button - only visible on large screens */}
       <button
         onClick={toggle}
@@ -33,9 +34,9 @@ export default function Header({ className = "" }: HeaderProps) {
       >
         <IoMenu size={24} className="text-gray-200" />
       </button>
-      
+
       <h1 className="text-lg font-semibold text-gray-100">Git Playground</h1>
-      <div className="w-6" /> {/* spacer for symmetry */}
+      <Button className="bg-gray-800 border border-gray-700 hover:bg-gray-600">LogIn</Button>
     </header>
   );
 }

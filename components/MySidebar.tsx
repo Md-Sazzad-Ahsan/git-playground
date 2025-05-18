@@ -21,7 +21,7 @@ export default function Sidebar() {
       )}
 
       <aside
-        className={`fixed top-0 left-0 h-full mt-16 w-64 bg-gray-900 text-gray-200 p-2 z-60
+        className={`fixed top-0 left-0 h-full mt-16 w-64 bg-gray-900 text-gray-200 p-2 z-50
           transform transition-transform duration-200 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"} 
           lg:translate-x-0 flex flex-col`}
